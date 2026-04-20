@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block title %}My Dashboard — DataForge{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title">Welcome, {{ user.username }}! 👋</h1>
+    <p class="page-subtitle">Your annotation workspace — pick up where you left off</p>
+  </div>
+  <div class="page-actions">
+    <a href="{% url 'datasets:upload' %}" class="btn btn-primary" id="new-dataset-btn">+ New Dataset</a>
+  </div>
+</div>
+
+<!-- Personal Stats -->
+<div class="stats-grid stats-grid--sm">
+  <div class="stat-card glass-card">
+    <div class="stat-icon">✅</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ total_labeled }}</div>
+      <div class="stat-label">Items Labeled</div>
+    </div>
+  </div>
+  <div class="stat-card glass-card">
+    <div class="stat-icon">🛡️</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ verified_count }}</div>
+      <div class="stat-label">Verified by Admin</div>
+    </div>
+  </div>
+  <div class="stat-card glass-card">
+    <div class="stat-icon">📂</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ datasets_with_pending|length }}</div>
+      <div class="stat-label">Active Datasets</div>
+    </div>
+  </div>
+</div>
+
+<!-- Available Datasets -->
+<div class="glass-card" id="available-datasets">
+  <div class="card-header">
+    <h3 class="card-title">Available Datasets</h3>
+  </div>
+  <div class="dataset-cards">
+    {% for item in datasets_with_pending %}
+    <div class="dataset-card glass-card--inner">
+      <div class="dataset-card-header">
+        <div class="dataset-icon">{% if item.dataset.file_type == 'image' %}🖼️{% else %}📄{% endif %}</div>
+        <div class="dataset-meta">
+          <h4 class="dataset-name">{{ item.dataset.name }}</h4>
+          <span class="badge badge-{{ item.dataset.file_type }}">{{ item.dataset.file_type|title }}</span>
+        </div>
+      </div>
+      <p class="dataset-desc">{{ item.dataset.description|truncatechars:80 }}</p>
+      <div class="dataset-progress">
+        <div class="progress-bar-wrap sm">
+          <div class="progress-bar" style="--prog: {{ item.progress }}%; width: var(--prog)"></div>
+        </div>
+        <div class="progress-info">
+          <span>{{ item.done }} / {{ item.total }} done</span>
+          <span class="font-bold">{{ item.progress }}%</span>
+        </div>
+      </div>
+      <div class="dataset-actions">
+        {% if item.pending > 0 %}
+        <a href="{% url 'annotations:queue' item.dataset.pk %}" class="btn btn-primary btn-sm" id="start-btn-{{ item.dataset.pk }}">
+          Start Labeling ({{ item.pending }} pending)
+        </a>
+        {% else %}
+        <span class="badge badge-success">✅ All done!</span>
+        {% endif %}
+        <a href="{% url 'datasets:detail' item.dataset.pk %}" class="btn btn-ghost btn-sm">View</a>
+      </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <h3>No Datasets Available</h3>
+      <p>Ask your admin to upload a dataset for you to annotate.</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Recent Activity -->
+{% if recent %}
+<div class="glass-card" id="recent-activity">
+  <div class="card-header">
+    <h3 class="card-title">Recent Activity</h3>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Dataset</th><th>Item #</th><th>Label</th><th>Confidence</th><th>Verified</th><th>Date</th></tr>
+      </thead>
+      <tbody>
+        {% for ann in recent %}
+        <tr>
+          <td>{{ ann.data_item.dataset.name }}</td>
+          <td class="font-mono">#{{ ann.data_item.pk }}</td>
+          <td><span class="label-pill">{{ ann.label }}</span></td>
+          <td>
+            <div class="confidence-stars">
+              {% for i in "12345" %}
+                <span class="star {% if forloop.counter <= ann.confidence %}filled{% endif %}">★</span>
+              {% endfor %}
+            </div>
+          </td>
+          <td>{% if ann.verified %}<span class="badge badge-success">✓ Verified</span>{% else %}<span class="badge badge-pending">Pending</span>{% endif %}</td>
+          <td class="text-muted">{{ ann.updated_at|date:"M d, H:i" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

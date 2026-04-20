@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Queue Complete — DataForge{% endblock %}
+{% block content %}
+<div class="empty-state full-page">
+  <div class="success-animation">🎉</div>
+  <h1>All Done!</h1>
+  <p>You've labeled all available items in <strong>{{ dataset.name }}</strong>.</p>
+  <div class="done-stats">
+    <div class="done-stat"><span>{{ items.count }}</span> items labeled</div>
+  </div>
+  <div class="done-actions">
+    <a href="{% url 'datasets:list' %}" class="btn btn-primary">Browse More Datasets</a>
+    <a href="{% url 'dashboard:home' %}" class="btn btn-ghost">Go to Dashboard</a>
+  </div>
+</div>
+{% endblock %}

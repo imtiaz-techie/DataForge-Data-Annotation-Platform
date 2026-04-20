@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Bounding Box Annotation — DataForge{% endblock %}
+{% block content %}
+<div class="labeling-shell" id="labeling-shell">
+  <!-- Top Bar -->
+  <div class="labeling-topbar glass-card">
+    <div class="labeling-breadcrumb">
+      <a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.name }}</a>
+      <span>/</span>
+      <span>Item #{{ item.pk }}</span>
+    </div>
+    <div class="labeling-meta">
+      <span class="meta-chip">🖼️ Object Detection</span>
+      <span class="meta-chip">Dataset: {{ dataset.name }}</span>
+    </div>
+    <div class="labeling-controls">
+      <a href="{% url 'annotations:release_lock' item.pk %}" class="btn btn-ghost btn-sm" id="skip-btn"
+         onclick="return confirm('Skip this item? It will be released for other annotators.')">Skip</a>
+      <a href="{% url 'datasets:detail' dataset.pk %}" class="btn btn-ghost btn-sm">← Back</a>
+    </div>
+  </div>
+
+  <div class="labeling-content">
+    <!-- Image Viewer -->
+    <div class="image-viewer-panel glass-card" id="image-viewer" style="display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative;">
+      <div class="canvas-container" id="canvas-container" style="position: relative; display: inline-block;">
+        <img
+          src="{{ item.file.url }}"
+          alt="Item {{ item.pk }}"
+          id="label-image"
+          draggable="false"
+          style="display: block; max-width: 100%; max-height: 70vh; user-select: none;"
+        />
+        <canvas id="bbox-canvas" style="position: absolute; top: 0; left: 0; cursor: crosshair;"></canvas>
+      </div>
+    </div>
+
+    <!-- Label Panel -->
+    <div class="label-panel" id="label-panel">
+      <div class="glass-card label-classes-card">
+        <h3 class="panel-title">Active Label</h3>
+        <p class="text-sm text-muted">Select a label, then drag on the image to draw a bounding box.</p>
+        <div class="label-grid" id="label-grid">
+          {% for lc in label_classes %}
+          <label class="label-option" id="label-opt-{{ forloop.counter }}">
+            <input type="radio" name="active_label" value="{{ lc }}" onchange="selectActiveLabel(this.value)" />
+            <span class="label-opt-icon">🏷</span>
+            <span class="label-opt-text">{{ lc }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="glass-card confidence-card">
+        <h4 class="panel-title">Drawn Objects</h4>
+        <ul id="box-list" style="list-style: none; padding: 0; margin: 0; max-height: 200px; overflow-y: auto;">
+          <!-- Boxes will be injected here by JS -->
+        </ul>
+      </div>
+
+      <form method="post" action="{% url 'annotations:submit_label' item.pk %}" id="label-form">
+        {% csrf_token %}
+        <!-- Hidden input to store JSON array of boxes -->
+        <input type="hidden" name="bounding_boxes" id="bounding-boxes-input" value="[]">
+        <input type="hidden" name="confidence" value="5">
+
+        <div class="label-submit-section">
+          <button type="submit" class="btn btn-primary btn-lg btn-full" id="submit-label-btn" onclick="prepareSubmit()">
+            ✓ Submit Annotations
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ label_classes|json_script:"label-classes-data" }}
+{{ annotation.bounding_boxes|json_script:"existing-boxes-data" }}
+<script src="/static/js/bounding_box.js"></script>
+{% endblock %}

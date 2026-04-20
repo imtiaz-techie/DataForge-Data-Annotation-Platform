@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}Upload Dataset — DataForge{% endblock %}
+{% block nav_upload %}active{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title">Upload New Dataset</h1>
+    <p class="page-subtitle">Upload images or text data for annotation</p>
+  </div>
+  <a href="{% url 'datasets:list' %}" class="btn btn-ghost">← Back to Datasets</a>
+</div>
+
+<div class="upload-grid">
+  <div class="upload-main">
+    <form method="post" enctype="multipart/form-data" id="upload-form">
+      {% csrf_token %}
+
+      <!-- Dataset Info -->
+      <div class="glass-card" id="dataset-info-card">
+        <div class="card-header"><h3 class="card-title">Dataset Information</h3></div>
+        <div class="form-group">
+          <label for="id_ds_name" class="form-label">Dataset Name <span class="required">*</span></label>
+          {{ form.name }}
+          {% if form.name.errors %}<div class="field-error">{{ form.name.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="form-group">
+          <label for="id_ds_desc" class="form-label">Description</label>
+          {{ form.description }}
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="id_ds_filetype" class="form-label">Data Type <span class="required">*</span></label>
+            {{ form.file_type }}
+          </div>
+          <div class="form-group">
+            <label for="id_ds_annotation_task" class="form-label">Annotation Task <span class="required">*</span></label>
+            {{ form.annotation_task }}
+          </div>
+          <div class="form-group">
+            <label for="id_ds_status" class="form-label">Status</label>
+            {{ form.status }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="id_label_classes_input" class="form-label">Label Classes <span class="required">*</span></label>
+          {{ form.label_classes_input }}
+          <div class="form-hint">Comma-separated class names, e.g. <code>cat, dog, bird</code></div>
+          <div class="label-preview" id="label-preview"></div>
+        </div>
+      </div>
+
+      <!-- File Upload Zone -->
+      <div class="glass-card" id="file-upload-card">
+        <div class="card-header">
+          <h3 class="card-title">Upload Files</h3>
+          <span class="text-muted text-sm">Max 50MB per file. ZIP files are automatically extracted.</span>
+        </div>
+        <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="Drop files here">
+          <div class="drop-zone-content" id="drop-zone-content">
+            <div class="drop-icon">📁</div>
+            <p class="drop-title">Drag & drop files here</p>
+            <p class="drop-sub">or <span class="drop-link">browse files</span></p>
+            <p class="drop-hint">Supported: JPG, PNG, GIF, WebP, TXT, CSV, ZIP</p>
+          </div>
+          <input type="file" name="files" id="file-input" multiple accept="image/*,.txt,.csv,.zip,.json" class="drop-input" />
+        </div>
+        <div class="file-list" id="file-list"></div>
+
+        <!-- Text input for text datasets -->
+        <div class="text-items-section" id="text-items-section" style="display:none">
+          <div class="divider">OR add text items directly</div>
+          <div class="form-group">
+            <label for="id_text_items" class="form-label">Text Items (one per line)</label>
+            <textarea name="text_items" id="id_text_items" class="form-input" rows="8"
+                      placeholder="Enter one text snippet per line...&#10;e.g.:&#10;The movie was absolutely fantastic!&#10;This product broke after one week."></textarea>
+            <div class="form-hint" id="text-count">0 items</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary btn-lg" id="upload-submit-btn">
+          <span class="btn-text">🚀 Create Dataset</span>
+        </button>
+        <a href="{% url 'datasets:list' %}" class="btn btn-ghost btn-lg">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Upload Tips -->
+  <div class="upload-sidebar">
+    <div class="glass-card tips-card">
+      <h4 class="tips-title">💡 Upload Tips</h4>
+      <ul class="tips-list">
+        <li>Use a <strong>ZIP file</strong> to upload many images at once</li>
+        <li>Each image becomes one annotation task</li>
+        <li>Label classes must match exactly what annotators will select</li>
+        <li>Corrupted or invalid files are automatically flagged</li>
+        <li>You can edit label classes after upload</li>
+      </ul>
+    </div>
+    <div class="glass-card tips-card">
+      <h4 class="tips-title">📊 Supported Formats</h4>
+      <div class="format-list">
+        <div class="format-item"><span>🖼️</span> JPG, PNG, GIF, WebP, BMP</div>
+        <div class="format-item"><span>📝</span> TXT, CSV, JSON</div>
+        <div class="format-item"><span>🗜️</span> ZIP (image archives)</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% load static %}{% static 'js/upload.js' %}"></script>
+{% endblock %}

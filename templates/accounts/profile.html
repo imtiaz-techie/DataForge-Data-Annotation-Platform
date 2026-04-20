@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Profile — DataForge{% endblock %}
+{% block nav_profile %}active{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title">My Profile</h1>
+    <p class="page-subtitle">Manage your account information and view your activity</p>
+  </div>
+</div>
+
+<div class="profile-grid">
+  <div class="profile-sidebar">
+    <div class="glass-card profile-card">
+      <div class="profile-avatar-wrap">
+        {% if user.avatar %}
+          <img src="{{ user.avatar.url }}" alt="Avatar" class="profile-avatar" id="avatar-preview" />
+        {% else %}
+          <div class="profile-avatar-placeholder" id="avatar-preview">{{ user.username|slice:":2"|upper }}</div>
+        {% endif %}
+      </div>
+      <h2 class="profile-username">{{ user.username }}</h2>
+      <span class="badge badge-{{ user.role }}">{{ user.role|title }}</span>
+      {% if user.bio %}<p class="profile-bio">{{ user.bio }}</p>{% endif %}
+      <div class="profile-stats">
+        <div class="pstat">
+          <div class="pstat-value">{{ total_annotated }}</div>
+          <div class="pstat-label">Labeled</div>
+        </div>
+        <div class="pstat">
+          <div class="pstat-value">{{ verified }}</div>
+          <div class="pstat-label">Verified</div>
+        </div>
+        <div class="pstat">
+          <div class="pstat-value">{{ user.date_joined|date:"M Y" }}</div>
+          <div class="pstat-label">Joined</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="profile-main">
+    <div class="glass-card">
+      <div class="card-header">
+        <h3 class="card-title">Edit Profile</h3>
+      </div>
+      <form method="post" enctype="multipart/form-data" class="auth-form" id="profile-form">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="id_prof_username" class="form-label">Username</label>
+          <div class="input-wrapper">
+            <span class="input-icon">👤</span>
+            {{ form.username }}
+          </div>
+          {% if form.username.errors %}<div class="field-error">{{ form.username.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="form-group">
+          <label for="id_prof_email" class="form-label">Email</label>
+          <div class="input-wrapper">
+            <span class="input-icon">📧</span>
+            {{ form.email }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="id_prof_bio" class="form-label">Bio</label>
+          {{ form.bio }}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Profile Picture</label>
+          {{ form.avatar }}
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="profile-save-btn">Save Changes</button>
+          <a href="{% url 'dashboard:home' %}" class="btn btn-ghost">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

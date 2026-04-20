@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard — DataForge{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title">Admin Dashboard</h1>
+    <p class="page-subtitle">Real-time overview of your annotation platform</p>
+  </div>
+  <div class="page-actions">
+    <a href="{% url 'datasets:upload' %}" class="btn btn-primary" id="new-dataset-btn">+ New Dataset</a>
+    <a href="{% url 'accounts:user_list' %}" class="btn btn-ghost">Manage Users</a>
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="stats-grid" id="stats-grid">
+  <div class="stat-card glass-card" id="stat-datasets">
+    <div class="stat-icon">🗄️</div>
+    <div class="stat-body">
+      <div class="stat-value" id="kpi-datasets">{{ total_datasets }}</div>
+      <div class="stat-label">Total Datasets</div>
+    </div>
+    <div class="stat-trend up">↑ Active</div>
+  </div>
+  <div class="stat-card glass-card" id="stat-items">
+    <div class="stat-icon">📋</div>
+    <div class="stat-body">
+      <div class="stat-value" id="kpi-items">{{ total_items }}</div>
+      <div class="stat-label">Total Items</div>
+    </div>
+    <div class="stat-trend">All data</div>
+  </div>
+  <div class="stat-card glass-card" id="stat-annotated">
+    <div class="stat-icon">✅</div>
+    <div class="stat-body">
+      <div class="stat-value" id="kpi-annotated">{{ total_annotated }}</div>
+      <div class="stat-label">Annotated</div>
+    </div>
+    <div class="stat-trend up">{{ overall_progress }}% done</div>
+  </div>
+  <div class="stat-card glass-card" id="stat-verified">
+    <div class="stat-icon">🛡️</div>
+    <div class="stat-body">
+      <div class="stat-value" id="kpi-verified">{{ total_verified }}</div>
+      <div class="stat-label">Verified</div>
+    </div>
+    <div class="stat-trend up">Quality checked</div>
+  </div>
+  <div class="stat-card glass-card" id="stat-users">
+    <div class="stat-icon">👥</div>
+    <div class="stat-body">
+      <div class="stat-value" id="kpi-users">{{ total_users }}</div>
+      <div class="stat-label">Annotators</div>
+    </div>
+    <div class="stat-trend">Active team</div>
+  </div>
+  <div class="stat-card glass-card glass-card--danger" id="stat-corrupted">
+    <div class="stat-icon">⚠️</div>
+    <div class="stat-body">
+      <div class="stat-value" id="kpi-corrupted">{{ total_corrupted }}</div>
+      <div class="stat-label">Corrupted Items</div>
+    </div>
+    <div class="stat-trend down">Filtered out</div>
+  </div>
+</div>
+
+<!-- Overall Progress Bar -->
+<div class="glass-card progress-overview" id="progress-overview">
+  <div class="card-header">
+    <h3 class="card-title">Overall Annotation Progress</h3>
+    <span class="progress-pct">{{ overall_progress }}%</span>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar" data-width="{{ overall_progress }}" style="--prog: {{ overall_progress }}%; width: var(--prog)" id="overall-progress-bar"></div>
+  </div>
+  <div class="progress-legend">
+    <span class="legend-item"><span class="dot done"></span> Annotated ({{ total_annotated }})</span>
+    <span class="legend-item"><span class="dot pending"></span> Pending ({{ total_items|add:"-"|add:total_annotated }})</span>
+  </div>
+</div>
+
+<div class="dashboard-grid">
+  <!-- Dataset Table -->
+  <div class="glass-card dashboard-datasets" id="datasets-section">
+    <div class="card-header">
+      <h3 class="card-title">Recent Datasets</h3>
+      <a href="{% url 'datasets:list' %}" class="btn btn-ghost btn-sm">View All</a>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>Dataset</th><th>Type</th><th>Progress</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for ds in recent_datasets %}
+          <tr>
+            <td>
+              <a href="{% url 'datasets:detail' ds.pk %}" class="link-highlight">{{ ds.name }}</a>
+              <div class="text-muted text-sm">{{ ds.total_items }} items</div>
+            </td>
+            <td><span class="badge badge-type">{{ ds.file_type|upper }}</span></td>
+            <td>
+              <div class="mini-progress">
+                <div class="mini-bar" style="--prog: {{ ds.progress_percent }}%; width: var(--prog)"></div>
+              </div>
+              <small class="text-muted">{{ ds.progress_percent }}%</small>
+            </td>
+            <td><span class="badge badge-{{ ds.status }}">{{ ds.status|title }}</span></td>
+            <td>
+              <a href="{% url 'annotations:review' ds.pk %}" class="btn btn-xs btn-ghost">Review</a>
+              <a href="{% url 'export:export' ds.pk 'csv' %}" class="btn btn-xs btn-success">CSV</a>
+              <a href="{% url 'export:export' ds.pk 'json' %}" class="btn btn-xs btn-info">JSON</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center text-muted">No datasets yet. <a href="{% url 'datasets:upload' %}">Upload one!</a></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Leaderboard -->
+  <div class="glass-card dashboard-leaderboard" id="leaderboard-section">
+    <div class="card-header">
+      <h3 class="card-title">🏆 Annotator Leaderboard</h3>
+    </div>
+    <div class="leaderboard-list">
+      {% for annotator in leaderboard %}
+      <div class="leaderboard-row {% if forloop.first %}leaderboard-top{% endif %}">
+        <div class="rank-badge">
+          {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% elif forloop.counter == 3 %}🥉{% else %}{{ forloop.counter }}{% endif %}
+        </div>
+        <div class="leaderboard-user">
+          {% if annotator.avatar %}
+            <img src="{{ annotator.avatar.url }}" class="user-avatar-sm" alt="{{ annotator.username }}" />
+          {% else %}
+            <div class="user-initials sm">{{ annotator.username|slice:":2"|upper }}</div>
+          {% endif %}
+          <span>{{ annotator.username }}</span>
+        </div>
+        <div class="leaderboard-count">
+          <span class="count-badge">{{ annotator.count }}</span>
+          <small>labeled</small>
+        </div>
+      </div>
+      {% empty %}
+      <p class="text-muted text-center">No annotations yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

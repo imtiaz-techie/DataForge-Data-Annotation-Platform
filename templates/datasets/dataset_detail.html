@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}{{ dataset.name }} — DataForge{% endblock %}
+{% block nav_datasets %}active{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <div class="breadcrumb">
+      <a href="{% url 'datasets:list' %}">Datasets</a> / <span>{{ dataset.name }}</span>
+    </div>
+    <h1 class="page-title">{{ dataset.name }}</h1>
+    <p class="page-subtitle">{{ dataset.description }}</p>
+  </div>
+  <div class="page-actions">
+    {% if user.role == 'admin' or user == dataset.uploaded_by %}
+    <a href="{% url 'annotations:review' dataset.pk %}" class="btn btn-ghost" id="review-btn">Review Labels</a>
+    <a href="{% url 'export:export' dataset.pk 'csv' %}" class="btn btn-success" id="export-csv-btn">⬇ CSV</a>
+    <a href="{% url 'export:export' dataset.pk 'json' %}" class="btn btn-info" id="export-json-btn">⬇ JSON</a>
+    <a href="{% url 'datasets:edit' dataset.pk %}" class="btn btn-ghost">✏ Edit</a>
+    {% endif %}
+    <a href="{% url 'annotations:queue' dataset.pk %}" class="btn btn-primary" id="start-annotate-btn">Start Annotating</a>
+  </div>
+</div>
+
+<!-- Dataset Stats -->
+<div class="stats-grid stats-grid--sm">
+  <div class="stat-card glass-card">
+    <div class="stat-icon">📋</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ total }}</div>
+      <div class="stat-label">Total Items</div>
+    </div>
+  </div>
+  <div class="stat-card glass-card">
+    <div class="stat-icon">✅</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ done }}</div>
+      <div class="stat-label">Labeled</div>
+    </div>
+  </div>
+  <div class="stat-card glass-card">
+    <div class="stat-icon">⏳</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ pending }}</div>
+      <div class="stat-label">Pending</div>
+    </div>
+  </div>
+  <div class="stat-card glass-card {% if corrupted > 0 %}glass-card--danger{% endif %}">
+    <div class="stat-icon">⚠️</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ corrupted }}</div>
+      <div class="stat-label">Corrupted</div>
+    </div>
+  </div>
+</div>
+
+<!-- Progress -->
+<div class="glass-card">
+  <div class="card-header">
+    <h3 class="card-title">Progress</h3>
+    <span class="progress-pct">{{ progress }}%</span>
+  </div>
+  <div class="progress-bar-wrap lg">
+    <div class="progress-bar" style="--prog: {{ progress }}%; width: var(--prog)"></div>
+  </div>
+</div>
+
+<!-- Label Classes -->
+<div class="glass-card">
+  <div class="card-header"><h3 class="card-title">Label Classes</h3></div>
+  <div class="label-chips lg">
+    {% for lc in dataset.get_label_classes %}
+    <span class="label-chip lg">{{ lc }}</span>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Items Table -->
+<div class="glass-card" id="items-section">
+  <div class="card-header">
+    <h3 class="card-title">Data Items</h3>
+    <div class="header-filters">
+      <select id="item-status-filter" class="form-input form-input--sm" onchange="filterItems()">
+        <option value="">All Status</option>
+        <option value="pending">Pending</option>
+        <option value="in_progress">In Progress</option>
+        <option value="done">Done</option>
+      </select>
+      <label class="checkbox-label">
+        <input type="checkbox" id="show-corrupted" onchange="filterItems()" />
+        <span>Show Corrupted</span>
+      </label>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table" id="items-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Preview</th>
+          <th>Status</th>
+          <th>Label</th>
+          <th>Annotator</th>
+          <th>Corrupted</th>
+          {% if user.role == 'admin' or user == dataset.uploaded_by %}<th>Actions</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr class="item-row" data-status="{{ item.status }}" data-corrupted="{{ item.is_corrupted|yesno:'true,false' }}">
+          <td class="font-mono">#{{ item.pk }}</td>
+          <td>
+            {% if item.file %}
+              {% if item.is_image %}
+                <img src="{{ item.file.url }}" alt="Item {{ item.pk }}" class="item-thumbnail" loading="lazy" />
+              {% else %}
+                <a href="{{ item.file.url }}" class="btn btn-xs btn-ghost" target="_blank">📄 File</a>
+              {% endif %}
+            {% elif item.text_content %}
+              <div class="text-preview">{{ item.text_content|truncatechars:60 }}</div>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge badge-{{ item.status }}">{{ item.status|title }}</span>
+          </td>
+          <td>
+            {% if item.status == 'done' %}
+              <span class="label-pill">{{ item.annotation.label }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if item.status == 'done' and item.annotation.annotator %}
+              {{ item.annotation.annotator.username }}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if item.is_corrupted %}
+              <span class="badge badge-danger" title="{{ item.corruption_reason }}">⚠ Yes</span>
+            {% else %}
+              <span class="badge badge-success">✓ Clean</span>
+            {% endif %}
+          </td>
+          {% if user.role == 'admin' or user == dataset.uploaded_by %}
+          <td>
+            <div class="action-group">
+              {% if not item.is_corrupted %}
+              <a href="{% url 'annotations:label_item' item.pk %}" class="btn btn-xs btn-primary" id="label-item-{{ item.pk }}">Label</a>
+              {% endif %}
+              <form method="post" action="{% url 'datasets:mark_corrupted' item.pk %}" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="reason" value="Marked by admin" />
+                <button type="submit" class="btn btn-xs {% if item.is_corrupted %}btn-success{% else %}btn-danger{% endif %}" id="corrupt-btn-{{ item.pk }}">
+                  {% if item.is_corrupted %}Restore{% else %}Flag{% endif %}
+                </button>
+              </form>
+            </div>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted">No items in this dataset.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterItems() {
+  const status = document.getElementById('item-status-filter').value;
+  const showCorrupted = document.getElementById('show-corrupted').checked;
+  document.querySelectorAll('.item-row').forEach(row => {
+    const statusMatch = !status || row.dataset.status === status;
+    const corruptedMatch = showCorrupted || row.dataset.corrupted === 'false';
+    row.style.display = (statusMatch && corruptedMatch) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

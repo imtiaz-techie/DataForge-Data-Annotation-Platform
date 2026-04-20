@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block title %}Datasets — DataForge{% endblock %}
+{% block nav_datasets %}active{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title">Datasets</h1>
+    <p class="page-subtitle">Manage and explore your annotation datasets</p>
+  </div>
+  {% if user.role == 'admin' %}
+  <a href="{% url 'datasets:upload' %}" class="btn btn-primary" id="upload-btn">+ Upload Dataset</a>
+  {% endif %}
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar glass-card">
+  <input type="text" id="dataset-search" class="form-input search-input" placeholder="🔍 Search datasets..." oninput="filterDatasets()" />
+  <select id="type-filter" class="form-input" onchange="filterDatasets()">
+    <option value="">All Types</option>
+    <option value="image">Image</option>
+    <option value="text">Text</option>
+  </select>
+  <select id="status-filter" class="form-input" onchange="filterDatasets()">
+    <option value="">All Status</option>
+    <option value="active">Active</option>
+    <option value="archived">Archived</option>
+    <option value="completed">Completed</option>
+  </select>
+</div>
+
+<div class="datasets-grid" id="datasets-grid">
+  {% for ds in datasets %}
+  <div class="dataset-card-big glass-card" data-name="{{ ds.name|lower }}" data-type="{{ ds.file_type }}" data-status="{{ ds.status }}">
+    <div class="dataset-card-top">
+      <div class="dataset-type-icon">{% if ds.file_type == 'image' %}🖼️{% else %}📄{% endif %}</div>
+      <div class="dataset-status-badges">
+        <span class="badge badge-{{ ds.status }}">{{ ds.status|title }}</span>
+        <span class="badge badge-type">{{ ds.file_type|upper }}</span>
+      </div>
+      {% if user.role == 'admin' %}
+      <div class="dataset-menu">
+        <button class="btn-icon-only" onclick="toggleMenu(this)" aria-label="Options">⋮</button>
+        <div class="dropdown-menu">
+          <a href="{% url 'datasets:edit' ds.pk %}">✏️ Edit</a>
+          <a href="{% url 'export:export' ds.pk 'csv' %}">📥 Export CSV</a>
+          <a href="{% url 'export:export' ds.pk 'json' %}">📥 Export JSON</a>
+          <form method="post" action="{% url 'datasets:delete' ds.pk %}" onsubmit="return confirm('Delete dataset?')">
+            {% csrf_token %}
+            <button type="submit" class="dropdown-danger">🗑️ Delete</button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <h3 class="dataset-name">
+      <a href="{% url 'datasets:detail' ds.pk %}">{{ ds.name }}</a>
+    </h3>
+    {% if ds.description %}
+    <p class="dataset-desc">{{ ds.description|truncatechars:100 }}</p>
+    {% endif %}
+
+    <div class="label-chips">
+      {% for lc in ds.get_label_classes %}
+      <span class="label-chip">{{ lc }}</span>
+      {% endfor %}
+    </div>
+
+    <div class="dataset-progress-section">
+      <div class="progress-stats">
+        <span>{{ ds.completed_items }} / {{ ds.total_items }} labeled</span>
+        <span class="prog-pct">{{ ds.progress_percent }}%</span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" style="--prog: {{ ds.progress_percent }}%; width: var(--prog)"></div>
+      </div>
+    </div>
+
+    <div class="dataset-footer">
+      <span class="text-muted text-sm">{{ ds.created_at|date:"M d, Y" }}</span>
+      <div class="dataset-actions">
+        <a href="{% url 'datasets:detail' ds.pk %}" class="btn btn-ghost btn-sm">View</a>
+        <a href="{% url 'annotations:queue' ds.pk %}" class="btn btn-primary btn-sm" id="annotate-{{ ds.pk }}">Annotate</a>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="empty-state full-width">
+    <div class="empty-icon">🗄️</div>
+    <h3>No Datasets Yet</h3>
+    <p>{% if user.role == 'admin' %}Get started by uploading your first dataset.{% else %}Ask your admin to upload a dataset.{% endif %}</p>
+    {% if user.role == 'admin' %}
+    <a href="{% url 'datasets:upload' %}" class="btn btn-primary">Upload Dataset</a>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterDatasets() {
+  const search = document.getElementById('dataset-search').value.toLowerCase();
+  const type = document.getElementById('type-filter').value;
+  const status = document.getElementById('status-filter').value;
+  document.querySelectorAll('.dataset-card-big').forEach(card => {
+    const nameMatch = card.dataset.name.includes(search);
+    const typeMatch = !type || card.dataset.type === type;
+    const statusMatch = !status || card.dataset.status === status;
+    card.style.display = (nameMatch && typeMatch && statusMatch) ? '' : 'none';
+  });
+}
+function toggleMenu(btn) {
+  const menu = btn.nextElementSibling;
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => { if(m !== menu) m.classList.remove('open'); });
+  menu.classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.dataset-menu')) document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+});
+</script>
+{% endblock %}

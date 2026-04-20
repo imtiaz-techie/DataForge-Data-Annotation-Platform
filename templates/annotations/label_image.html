@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}Label Image — DataForge{% endblock %}
+{% block content %}
+<div class="labeling-shell" id="labeling-shell">
+  <!-- Top Bar -->
+  <div class="labeling-topbar glass-card">
+    <div class="labeling-breadcrumb">
+      <a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.name }}</a>
+      <span>/</span>
+      <span>Item #{{ item.pk }}</span>
+    </div>
+    <div class="labeling-meta">
+      <span class="meta-chip">🖼️ Image</span>
+      <span class="meta-chip">Dataset: {{ dataset.name }}</span>
+      {% if existing_label %}
+      <span class="meta-chip meta-chip--success">Current: {{ existing_label }}</span>
+      {% endif %}
+    </div>
+    <div class="labeling-controls">
+      <a href="{% url 'annotations:release_lock' item.pk %}" class="btn btn-ghost btn-sm" id="skip-btn"
+         onclick="return confirm('Skip this item? It will be released for other annotators.')">Skip</a>
+      <a href="{% url 'datasets:detail' dataset.pk %}" class="btn btn-ghost btn-sm">← Back</a>
+    </div>
+  </div>
+
+  <div class="labeling-content">
+    <!-- Image Viewer -->
+    <div class="image-viewer-panel glass-card" id="image-viewer">
+      <div class="image-container" id="image-container">
+        <img
+          src="{{ item.file.url }}"
+          alt="Item {{ item.pk }}"
+          class="label-image"
+          id="label-image"
+          draggable="false"
+        />
+        <div class="image-controls">
+          <button class="img-ctrl-btn" onclick="zoomIn()" id="zoom-in-btn" title="Zoom In">🔍+</button>
+          <button class="img-ctrl-btn" onclick="zoomOut()" id="zoom-out-btn" title="Zoom Out">🔍−</button>
+          <button class="img-ctrl-btn" onclick="resetZoom()" id="zoom-reset-btn" title="Reset">⊙</button>
+          <button class="img-ctrl-btn" onclick="rotateImage()" id="rotate-btn" title="Rotate">↻</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Label Panel -->
+    <div class="label-panel" id="label-panel">
+      <form method="post" action="{% url 'annotations:submit_label' item.pk %}" id="label-form">
+        {% csrf_token %}
+
+        <div class="glass-card label-classes-card">
+          <h3 class="panel-title">Select Label</h3>
+          <div class="label-grid" id="label-grid">
+            {% for lc in label_classes %}
+            <label class="label-option {% if existing_label == lc %}selected{% endif %}" id="label-opt-{{ forloop.counter }}">
+              <input type="radio" name="label" value="{{ lc }}"
+                     {% if existing_label == lc %}checked{% endif %}
+                     onchange="selectLabel(this)" />
+              <span class="label-opt-icon">🏷</span>
+              <span class="label-opt-text">{{ lc }}</span>
+              {% if existing_label == lc %}<span class="label-check">✓</span>{% endif %}
+            </label>
+            {% endfor %}
+          </div>
+          <div class="selected-display" id="selected-display">
+            {% if existing_label %}Selected: <strong>{{ existing_label }}</strong>{% else %}No label selected{% endif %}
+          </div>
+        </div>
+
+        <div class="glass-card confidence-card">
+          <h4 class="panel-title">Confidence Level</h4>
+          <div class="confidence-selector" id="confidence-selector">
+            {% for i in "12345" %}
+            <label class="conf-option" title="Level {{ forloop.counter }}">
+              <input type="radio" name="confidence" value="{{ forloop.counter }}"
+                     {% if forloop.counter == 3 %}checked{% endif %}
+                     data-level="{{ forloop.counter }}" onchange="updateConfidence(this.dataset.level)" />
+              <span class="conf-star">★</span>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="conf-label" id="conf-label">Moderate confidence</div>
+        </div>
+
+        <div class="label-submit-section">
+          <button type="submit" class="btn btn-primary btn-lg btn-full" id="submit-label-btn" disabled>
+            ✓ Submit Label
+          </button>
+          <div class="keyboard-hint">
+            <span>Keyboard shortcuts: 1–{{ label_classes|length }} to select, Enter to submit</span>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/labeling.js' %}"></script>
+{{ label_classes|json_script:"label-classes-data" }}
+<script>
+const LABEL_CLASSES = JSON.parse(document.getElementById('label-classes-data').textContent);
+const EXISTING_LABEL = "{{ existing_label }}";
+const CONF_LABELS = ['', 'Very low', 'Low', 'Moderate', 'High', 'Very high'];
+
+function selectLabel(input) {
+  document.querySelectorAll('.label-option').forEach(el => el.classList.remove('selected'));
+  const label = input.closest('.label-option');
+  label.classList.add('selected');
+  document.getElementById('selected-display').innerHTML = 'Selected: <strong>' + input.value + '</strong>';
+  document.getElementById('submit-label-btn').disabled = false;
+}
+
+function updateConfidence(level) {
+  document.getElementById('conf-label').textContent = CONF_LABELS[level] + ' confidence';
+  document.querySelectorAll('.conf-star').forEach((star, i) => {
+    star.classList.toggle('filled', i < level);
+  });
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  const n = parseInt(e.key);
+  if (n >= 1 && n <= LABEL_CLASSES.length) {
+    const inputs = document.querySelectorAll('input[name="label"]');
+    if (inputs[n-1]) { inputs[n-1].click(); }
+  }
+  if (e.key === 'Enter' && !e.target.matches('button, a')) {
+    const btn = document.getElementById('submit-label-btn');
+    if (!btn.disabled) btn.closest('form').submit();
+  }
+});
+
+// Init
+if (EXISTING_LABEL) document.getElementById('submit-label-btn').disabled = false;
+updateConfidence(3);
+</script>
+{% endblock %}

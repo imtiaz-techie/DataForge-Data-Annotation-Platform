@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block title %}Label Text — DataForge{% endblock %}
+{% block content %}
+<div class="labeling-shell" id="labeling-shell">
+  <div class="labeling-topbar glass-card">
+    <div class="labeling-breadcrumb">
+      <a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.name }}</a> / Item #{{ item.pk }}
+    </div>
+    <div class="labeling-meta">
+      <span class="meta-chip">📝 Text</span>
+      {% if existing_label %}<span class="meta-chip meta-chip--success">Current: {{ existing_label }}</span>{% endif %}
+    </div>
+    <div class="labeling-controls">
+      <a href="{% url 'annotations:release_lock' item.pk %}" class="btn btn-ghost btn-sm" id="skip-text-btn"
+         onclick="return confirm('Skip this item?')">Skip</a>
+      <a href="{% url 'datasets:detail' dataset.pk %}" class="btn btn-ghost btn-sm">← Back</a>
+    </div>
+  </div>
+
+  <div class="labeling-content labeling-content--text">
+    <!-- Text Display -->
+    <div class="text-viewer-panel glass-card" id="text-viewer">
+      <div class="text-viewer-header">
+        <span class="text-item-badge">Text Item #{{ item.pk }}</span>
+        <button class="btn btn-ghost btn-sm" onclick="copyText()" id="copy-text-btn">📋 Copy</button>
+      </div>
+      <div class="text-content" id="text-content">{{ item.text_content }}</div>
+      <div class="text-stats">
+        <span>{{ item.text_content|length }} characters</span>
+        <span>~{{ item.text_content|wordcount }} words</span>
+      </div>
+    </div>
+
+    <!-- Label Panel -->
+    <div class="label-panel" id="label-panel-text">
+      <form method="post" action="{% url 'annotations:submit_label' item.pk %}" id="label-text-form">
+        {% csrf_token %}
+
+        <div class="glass-card label-classes-card">
+          <h3 class="panel-title">Classify This Text</h3>
+          <div class="label-grid" id="label-grid-text">
+            {% for lc in label_classes %}
+            <label class="label-option {% if existing_label == lc %}selected{% endif %}" id="text-label-opt-{{ forloop.counter }}">
+              <input type="radio" name="label" value="{{ lc }}"
+                     {% if existing_label == lc %}checked{% endif %}
+                     onchange="selectLabelText(this)" />
+              <span class="label-opt-icon">🏷</span>
+              <span class="label-opt-text">{{ lc }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="selected-display" id="selected-display-text">
+            {% if existing_label %}Selected: <strong>{{ existing_label }}</strong>{% else %}No label selected{% endif %}
+          </div>
+        </div>
+
+        <div class="glass-card confidence-card">
+          <h4 class="panel-title">Confidence Level</h4>
+          <div class="confidence-selector">
+            {% for i in "12345" %}
+            <label class="conf-option">
+              <input type="radio" name="confidence" value="{{ forloop.counter }}"
+                     {% if forloop.counter == 3 %}checked{% endif %}
+                     data-level="{{ forloop.counter }}" onchange="updateConfidenceText(this.dataset.level)" />
+              <span class="conf-star">★</span>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="conf-label" id="conf-label-text">Moderate confidence</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg btn-full" id="submit-text-label-btn" disabled>
+          ✓ Submit Label
+        </button>
+        <div class="keyboard-hint"><span>Keyboard: 1–{{ label_classes|length }} to select, Enter to submit</span></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ label_classes|json_script:"label-classes-data" }}
+<script>
+const LABEL_CLASSES_TEXT = JSON.parse(document.getElementById('label-classes-data').textContent);
+const EXISTING_LABEL_TEXT = "{{ existing_label }}";
+const CONF_LABELS = ['', 'Very low', 'Low', 'Moderate', 'High', 'Very high'];
+
+function selectLabelText(input) {
+  document.querySelectorAll('#label-grid-text .label-option').forEach(el => el.classList.remove('selected'));
+  input.closest('.label-option').classList.add('selected');
+  document.getElementById('selected-display-text').innerHTML = 'Selected: <strong>' + input.value + '</strong>';
+  document.getElementById('submit-text-label-btn').disabled = false;
+}
+
+function updateConfidenceText(level) {
+  document.getElementById('conf-label-text').textContent = CONF_LABELS[level] + ' confidence';
+  document.querySelectorAll('.conf-star').forEach((s, i) => s.classList.toggle('filled', i < level));
+}
+
+function copyText() {
+  navigator.clipboard.writeText(document.getElementById('text-content').innerText).then(() => {
+    const btn = document.getElementById('copy-text-btn');
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy', 2000);
+  });
+}
+
+document.addEventListener('keydown', e => {
+  const n = parseInt(e.key);
+  if (n >= 1 && n <= LABEL_CLASSES_TEXT.length) {
+    const inputs = document.querySelectorAll('input[name="label"]');
+    if (inputs[n-1]) inputs[n-1].click();
+  }
+  if (e.key === 'Enter' && !e.target.matches('button, a, textarea')) {
+    const btn = document.getElementById('submit-text-label-btn');
+    if (!btn.disabled) btn.closest('form').submit();
+  }
+});
+
+if (EXISTING_LABEL_TEXT) document.getElementById('submit-text-label-btn').disabled = false;
+updateConfidenceText(3);
+</script>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Create Account — DataForge{% endblock %}
+{% block content %}
+<div class="auth-page">
+  <div class="auth-left">
+    <div class="auth-brand">
+      <div class="auth-brand-icon">⚡</div>
+      <h1 class="auth-brand-name">DataForge</h1>
+      <p class="auth-tagline">Join thousands of annotators building the future of AI datasets.</p>
+    </div>
+    <div class="auth-features">
+      <div class="auth-feature"><span>🚀</span> Fast Onboarding</div>
+      <div class="auth-feature"><span>🛡️</span> Role-Based Access</div>
+      <div class="auth-feature"><span>📈</span> Track Your Progress</div>
+      <div class="auth-feature"><span>🤝</span> Collaborate with Teams</div>
+    </div>
+  </div>
+  <div class="auth-right">
+    <div class="auth-card glass-card">
+      <div class="auth-header">
+        <h2>Create Account</h2>
+        <p>Join the DataForge platform today</p>
+      </div>
+      <form method="post" action="{% url 'accounts:register' %}" class="auth-form" id="register-form">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="id_reg_username" class="form-label">Username</label>
+          <div class="input-wrapper">
+            <span class="input-icon">👤</span>
+            {{ form.username }}
+          </div>
+          {% if form.username.errors %}<div class="field-error">{{ form.username.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="form-group">
+          <label for="id_email" class="form-label">Email Address</label>
+          <div class="input-wrapper">
+            <span class="input-icon">📧</span>
+            {{ form.email }}
+          </div>
+          {% if form.email.errors %}<div class="field-error">{{ form.email.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="form-group">
+          <label for="id_role" class="form-label">Role</label>
+          <div class="input-wrapper">
+            <span class="input-icon">🎭</span>
+            {{ form.role }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="id_password1" class="form-label">Password</label>
+          <div class="input-wrapper">
+            <span class="input-icon">🔑</span>
+            {{ form.password1 }}
+            <button type="button" class="toggle-password" onclick="togglePassword('id_password1')" aria-label="Toggle">👁</button>
+          </div>
+          {% if form.password1.errors %}<div class="field-error">{{ form.password1.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="form-group">
+          <label for="id_password2" class="form-label">Confirm Password</label>
+          <div class="input-wrapper">
+            <span class="input-icon">🔒</span>
+            {{ form.password2 }}
+          </div>
+          {% if form.password2.errors %}<div class="field-error">{{ form.password2.errors.0 }}</div>{% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="register-submit-btn">
+          <span class="btn-text">Create Account</span>
+          <span class="btn-icon">✨</span>
+        </button>
+      </form>
+      <div class="auth-footer">
+        <p>Already have an account? <a href="{% url 'accounts:login' %}" class="auth-link">Sign in</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function togglePassword(id) {
+  const input = document.getElementById(id);
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+</script>
+{% endblock %}

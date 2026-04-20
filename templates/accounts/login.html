@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Sign In — DataForge{% endblock %}
+{% block content %}
+<div class="auth-page">
+  <div class="auth-left">
+    <div class="auth-brand">
+      <div class="auth-brand-icon">⚡</div>
+      <h1 class="auth-brand-name">DataForge</h1>
+      <p class="auth-tagline">Streamline your AI/ML data labeling pipeline with intelligent annotation tools.</p>
+    </div>
+    <div class="auth-features">
+      <div class="auth-feature"><span>🎯</span> Precision Labeling Interface</div>
+      <div class="auth-feature"><span>🔒</span> Concurrency Control</div>
+      <div class="auth-feature"><span>📊</span> Real-Time Progress Dashboard</div>
+      <div class="auth-feature"><span>📤</span> CSV & JSON Export</div>
+    </div>
+  </div>
+  <div class="auth-right">
+    <div class="auth-card glass-card">
+      <div class="auth-header">
+        <h2>Welcome Back</h2>
+        <p>Sign in to your account to continue</p>
+      </div>
+      <form method="post" action="{% url 'accounts:login' %}" class="auth-form" id="login-form">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="id_username" class="form-label">Username</label>
+          <div class="input-wrapper">
+            <span class="input-icon">👤</span>
+            {{ form.username }}
+          </div>
+          {% if form.username.errors %}
+          <div class="field-error">{{ form.username.errors.0 }}</div>
+          {% endif %}
+        </div>
+        <div class="form-group">
+          <label for="id_password" class="form-label">Password</label>
+          <div class="input-wrapper">
+            <span class="input-icon">🔑</span>
+            {{ form.password }}
+            <button type="button" class="toggle-password" onclick="togglePassword('id_password')" aria-label="Toggle password">👁</button>
+          </div>
+          {% if form.password.errors %}
+          <div class="field-error">{{ form.password.errors.0 }}</div>
+          {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="login-submit-btn">
+          <span class="btn-text">Sign In</span>
+          <span class="btn-icon">→</span>
+        </button>
+      </form>
+      <div class="auth-footer">
+        <p>Don't have an account? <a href="{% url 'accounts:register' %}" class="auth-link">Create one</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function togglePassword(id) {
+  const input = document.getElementById(id);
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+</script>
+{% endblock %}

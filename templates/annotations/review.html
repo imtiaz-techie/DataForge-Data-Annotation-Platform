@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}Review Annotations — {{ dataset.name }} — DataForge{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <div class="breadcrumb"><a href="{% url 'datasets:detail' dataset.pk %}">{{ dataset.name }}</a> / Review</div>
+    <h1 class="page-title">Label Review & Verification</h1>
+    <p class="page-subtitle">{{ annotations.count }} annotations to review</p>
+  </div>
+  <div class="page-actions">
+    <a href="{% url 'export:export' dataset.pk 'csv' %}" class="btn btn-success" id="review-export-csv">Export CSV</a>
+    <a href="{% url 'export:export' dataset.pk 'json' %}" class="btn btn-info" id="review-export-json">Export JSON</a>
+  </div>
+</div>
+
+<!-- Stats Bar -->
+<div class="stats-grid stats-grid--sm">
+  <div class="stat-card glass-card">
+    <div class="stat-icon">📋</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ annotations.count }}</div>
+      <div class="stat-label">Total Annotations</div>
+    </div>
+  </div>
+  <div class="stat-card glass-card">
+    <div class="stat-icon">🛡️</div>
+    <div class="stat-body">
+      <div class="stat-value">{{ annotations|length }}</div>
+      <div class="stat-label">Verified</div>
+    </div>
+  </div>
+</div>
+
+<div class="glass-card" id="review-table-section">
+  <div class="card-header">
+    <h3 class="card-title">All Annotations</h3>
+    <select id="verified-filter" class="form-input form-input--sm" onchange="filterAnnotations()">
+      <option value="">All</option>
+      <option value="verified">Verified</option>
+      <option value="unverified">Unverified</option>
+    </select>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table" id="review-table">
+      <thead>
+        <tr>
+          <th>Item #</th>
+          <th>Preview</th>
+          <th>Label</th>
+          <th>Confidence</th>
+          <th>Annotator</th>
+          <th>Verified</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ann in annotations %}
+        <tr class="ann-row" data-verified="{{ ann.verified|yesno:'true,false' }}">
+          <td class="font-mono">#{{ ann.data_item.pk }}</td>
+          <td>
+            {% if ann.data_item.file %}
+              {% if ann.data_item.is_image %}
+                <img src="{{ ann.data_item.file.url }}" class="item-thumbnail" alt="Item" loading="lazy" />
+              {% else %}
+                <a href="{{ ann.data_item.file.url }}" target="_blank" class="btn btn-xs btn-ghost">📄 File</a>
+              {% endif %}
+            {% elif ann.data_item.text_content %}
+              <div class="text-preview">{{ ann.data_item.text_content|truncatechars:50 }}</div>
+            {% endif %}
+          </td>
+          <td><span class="label-pill">{{ ann.label }}</span></td>
+          <td>
+            <div class="confidence-stars sm">
+              {% for i in "12345" %}
+              <span class="star {% if forloop.counter <= ann.confidence %}filled{% endif %}">★</span>
+              {% endfor %}
+            </div>
+          </td>
+          <td>{{ ann.annotator.username|default:"—" }}</td>
+          <td>
+            {% if ann.verified %}
+              <span class="badge badge-success">✓ by {{ ann.verified_by.username|default:"?" }}</span>
+            {% else %}
+              <span class="badge badge-pending">Pending</span>
+            {% endif %}
+          </td>
+          <td class="text-muted">{{ ann.updated_at|date:"M d, H:i" }}</td>
+          <td>
+            {% if not ann.verified %}
+            <button class="btn btn-xs btn-success" data-pk="{{ ann.pk }}" data-label="{{ ann.label }}" onclick="openVerifyModal(this.dataset.pk, this.dataset.label)" id="verify-ann-{{ ann.pk }}">
+              ✓ Verify
+            </button>
+            {% else %}
+            <button class="btn btn-xs btn-ghost" data-pk="{{ ann.pk }}" data-label="{{ ann.label }}" onclick="openVerifyModal(this.dataset.pk, this.dataset.label)" id="override-ann-{{ ann.pk }}">
+              ✏ Override
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center text-muted">No annotations yet for this dataset.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Verify Modal -->
+<div class="modal-overlay" id="verify-modal" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal glass-card">
+    <div class="modal-header">
+      <h3>Verify / Override Annotation</h3>
+      <button class="modal-close" onclick="closeVerifyModal()" aria-label="Close">×</button>
+    </div>
+    <form method="post" id="verify-form">
+      {% csrf_token %}
+      <div class="modal-body">
+        <p>Current label: <strong id="current-label-display"></strong></p>
+        <div class="form-group">
+          <label class="form-label">Override Label (optional)</label>
+          <select name="label" class="form-input" id="override-label-select">
+            <option value="">Keep current label</option>
+            {% for ann in annotations %}
+              {% for lc in ann.data_item.dataset.get_label_classes %}
+              <option value="{{ lc }}">{{ lc }}</option>
+              {% endfor %}
+              {% if not forloop.last %}{% endif %}
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" name="action" value="verify" class="btn btn-success" id="confirm-verify-btn">✓ Verify</button>
+        <button type="submit" name="action" value="override" class="btn btn-warning" id="confirm-override-btn">✏ Override</button>
+        <button type="button" class="btn btn-ghost" onclick="closeVerifyModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openVerifyModal(annPk, currentLabel) {
+  document.getElementById('verify-modal').style.display = 'flex';
+  document.getElementById('current-label-display').textContent = currentLabel;
+  document.getElementById('verify-form').action = '/annotations/verify/' + annPk + '/';
+  // Populate override select with dataset labels
+  const sel = document.getElementById('override-label-select');
+  // Keep it as is — labels already populated
+}
+function closeVerifyModal() {
+  document.getElementById('verify-modal').style.display = 'none';
+}
+function filterAnnotations() {
+  const filter = document.getElementById('verified-filter').value;
+  document.querySelectorAll('.ann-row').forEach(row => {
+    if (!filter) { row.style.display = ''; return; }
+    row.style.display = (filter === 'verified' ? row.dataset.verified === 'true' : row.dataset.verified === 'false') ? '' : 'none';
+  });
+}
+document.getElementById('verify-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeVerifyModal();
+});
+</script>
+{% endblock %}
